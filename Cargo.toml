@@ -1,5 +1,6 @@
 [workspace]
 members = [
 	"caramell-server",
-	"caramell-client"
+	"caramell-client",
+	"utils"
 ]

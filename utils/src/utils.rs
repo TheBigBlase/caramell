@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use memcache;
+use rumqttc;
 
 #[derive(Clone)]
 pub struct MemcacheClient {

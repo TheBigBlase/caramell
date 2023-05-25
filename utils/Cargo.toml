@@ -1,0 +1,13 @@
+[package]
+name = "utils"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytes = "1.4.0"
+memcache = "0.17.0"
+rumqttc = "0.21.0"
+serde = "1.0.163"
+toml = "0.7.4"
