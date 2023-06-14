@@ -5,11 +5,16 @@ use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
 
+pub mod blockchain;
+pub mod contracts;
+
 #[derive(Deserialize)]
-struct Config {
-    params: Params,
+pub struct Config {
+    pub params: Option<Params>,
+    pub blockchain: Option<Blockchain>,
 }
-#[derive(Deserialize)]
+
+#[derive(Deserialize, Clone)]
 pub struct Params {
     pub broker_ip: String,
     pub broker_port: u16,
@@ -17,6 +22,15 @@ pub struct Params {
     pub cache_port: Option<u16>,
     pub id: String,
 }
+
+#[derive(Deserialize, Clone)]
+pub struct Blockchain {
+    pub rpc_url_http: String,
+    pub rpc_url_ws: String,
+    pub wallet_key: String,
+    pub contract_addr: String
+}
+
 #[derive(Clone)]
 pub struct MemcacheClient {
     ip: String,
@@ -85,12 +99,13 @@ pub fn check_mem(msg: Bytes, mem_client: MemcacheClient) -> Result<(), memcache:
     }
 }
 
-pub fn load_toml(path: String) -> Params {
+pub fn load_toml(path: &str) -> Config {
     let mut cargo_text = String::new();
-    File::open(format!("{}/Cargo.toml", path))
+    File::open(format!("{}/Cargo.toml", path.to_string()))
         .unwrap()
         .read_to_string(&mut cargo_text)
         .unwrap();
     let params: Config = toml::from_str(cargo_text.as_str()).unwrap();
-    params.params
+    params
 }
+

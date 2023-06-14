@@ -1,2 +1,6 @@
 target
 Cargo.lock
+utils/src/contracts/
+utils/contracts/
+createBindings/contracts/
+createBindings/src/contracts/

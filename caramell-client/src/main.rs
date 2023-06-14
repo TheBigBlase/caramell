@@ -7,7 +7,7 @@ use tokio::{task, time};
 
 #[tokio::main]
 async fn main() {
-    let params: utils::Params = utils::load_toml(String::from("caramell-client"));
+    let params: utils::Params = utils::load_toml("caramell-client").params.unwrap();
 
     let mut mqttoptions = MqttOptions::new(params.id.clone(), params.broker_ip.clone(), params.broker_port);
     mqttoptions.set_keep_alive(Duration::from_secs(10));

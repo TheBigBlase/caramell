@@ -3,5 +3,6 @@ members = [
 	"caramell-server",
 	"caramell-client",
 	"caramell-blockchain/caramell-blockchain/w3rs",
+	"createBindings",
 	"utils"
 ]

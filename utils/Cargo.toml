@@ -7,7 +7,12 @@ edition = "2021"
 
 [dependencies]
 bytes = "1.4.0"
+ethers = "2.0.7"
+ethers-contract = "2.0.7"
+ethers-middleware = "2.0.7"
+ethers-providers = "2.0.7"
 memcache = "0.17.0"
+primitive-types = "0.12.1"
 rumqttc = "0.21.0"
 serde = "1.0.163"
 toml = "0.7.4"
