@@ -1,8 +1,8 @@
 extern crate utils;
 
 use rumqttc::v5::{Client, MqttOptions};
-use utils::Broker;
 use std::time::Duration;
+use utils::Broker;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let params: utils::Params = utils::load_toml("caramell-client").params.unwrap();
@@ -19,8 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let broker_list = utils::get_list_cacher_from_broker(client, eventloop)?;
     println!("broker list: {:?}", broker_list);
 
-    let broker:&Broker = broker_list.first().unwrap();
-
+    let _broker: &Broker = broker_list.first().unwrap();
 
     Ok(())
 }

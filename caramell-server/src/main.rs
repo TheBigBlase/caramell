@@ -7,7 +7,7 @@ mod server_utils;
 #[tokio::main]
 async fn main() {
     let params = utils::load_toml("caramell-server").params.unwrap();
-    let mut mqttoptions = MqttOptions::new(params.id, params.broker_ip, params.broker_port, );
+    let mut mqttoptions = MqttOptions::new(params.id, params.broker_ip, params.broker_port);
 
     //remember unread msg
     mqttoptions

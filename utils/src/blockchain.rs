@@ -22,7 +22,7 @@ where
     M::Provider: ethers_providers::PubsubClient,
     D: EthLogDecode,
 {
-    let mut contract_addr: H160 = H160([0u8; 20]);
+    let mut contract_addr: H160 = H160::zero();
 
     let mut evt = evt.subscribe().await?;
     while let Ok(e) = evt.next().await.unwrap() {
@@ -84,6 +84,7 @@ async fn create_client_factory(
     ))
 }
 
+/// get client's contract address w/ wallet & factory address (in config)
 pub async fn get_client_contract_addr(
     config: crate::Config,
 ) -> Result<H160, Box<dyn std::error::Error>> {

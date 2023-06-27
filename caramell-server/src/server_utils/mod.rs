@@ -1,19 +1,12 @@
-use ethers::providers::Ws;
-use ethers::signers::{LocalWallet, Signer, Wallet};
-use ethers::types::{H160, U256};
-use ethers_middleware::core::k256::ecdsa::SigningKey;
-use ethers_middleware::SignerMiddleware;
-use ethers_providers::Provider;
-use std::sync::Arc;
-
 use tokio::task;
 
 use rumqttc::v5::EventLoop;
 use utils::blockchain;
-use utils::contracts::client_factory::{clientFactory, ContractCreatedFilter};
+
 use utils::MemcacheClient;
 
-async fn serve_forever(mut eventloop: EventLoop, mem_client: MemcacheClient) {
+/// run broker interface forever
+async fn broker_serve_forever(mut eventloop: EventLoop, mem_client: MemcacheClient) {
     let _handle = task::spawn(async move {
         while let Ok(notification) = eventloop.poll().await {
             let res = utils::check_publish(notification, mem_client.clone());
@@ -27,7 +20,8 @@ async fn serve_forever(mut eventloop: EventLoop, mem_client: MemcacheClient) {
                 _ => {}
             }
         }
-    }).await;
+    })
+    .await;
 
     panic!("exiting forever loop");
 }
@@ -38,16 +32,16 @@ pub async fn serve_trust(
     eventloop: EventLoop,
     mem_client: MemcacheClient,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    //TODO check blck contracts
-    let _serve_handle = serve_forever(eventloop, mem_client);
+    let serve_handle = broker_serve_forever(eventloop, mem_client);
 
     let config = utils::load_toml("caramell-server");
+    let client_contract_addr = blockchain::get_client_contract_addr(config).await?;
 
-    let wallet = blockchain::create_wallet(config.clone());
-    let client_addr = blockchain::get_client_contract_addr(config).await?;
-    println!("{:?}", client_addr);
+    println!("contract address: {:?}", client_contract_addr);
 
-    _serve_handle.await;
+    serve_handle.await;
+    // TODO tx to pay every interval
+    // TODO also change contract :)
 
     Ok(())
 }

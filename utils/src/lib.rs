@@ -2,14 +2,13 @@ use bytes::Bytes;
 use memcache;
 pub use primitive_types::H160;
 use rumqttc::v5::mqttbytes::QoS;
-use rumqttc::v5::{Client, ClientError, Connection, Event, EventLoop, Incoming};
-use rumqttc::{self, RecvError, RecvTimeoutError};
+use rumqttc::v5::{Client, ClientError, Connection, Event, Incoming};
+use rumqttc::{self};
 use serde::Deserialize;
-use std::error::Error;
+
 use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
-use tokio::{task, time};
 
 pub mod blockchain;
 pub mod contracts;
@@ -29,7 +28,7 @@ pub struct Params {
     pub cache_name: Option<String>,
     pub id: String,
     pub contract_addr: Option<H160>,
-    pub pub_key: Option<H160>
+    pub pub_key: Option<H160>,
 }
 
 #[derive(Deserialize, Clone)]
