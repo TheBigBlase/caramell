@@ -40,13 +40,15 @@ Notes:
     * PoA blockchain (recommanded by my suppervisors).
     * besu hyperledger
 * MW:
-	* should be client and interface dependant, so on a blockchain verif node ?
-		* if client or cacher dependant, might cheat
+	* acts for off chain verif / actions
+	* is a overhead of cache
 
 ## usage
 runing the mqtt: 
 `docker pull bytebeamio/rumqttd
 docker run -d -p 1883:1883 -p 1884:1884 -it --name rumqttd bytebeamio/rumqttd`  
+
+or use anything you fancy (mosquitto/rmqtt...)
 
 running memcached: 
 `docker pull memcached
@@ -65,3 +67,6 @@ server: `cargo run --bin caramell-server`
 * ~~do server => blockchain~~
 * ~~mqtt => blockchain as well?~~
 * paying mechanism: contract witholding (?) gas, then retrievable by cache owner
+	* contract side
+	* cacher side
+	* client side
