@@ -45,3 +45,4 @@ clean() {
 
 # gen bindings & put them into dest
 cargo run --bin createBindings && moveBindingsToDest
+echo "all done, copied to $base/utils/src/"

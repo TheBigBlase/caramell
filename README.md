@@ -10,18 +10,24 @@ The caching system needs to be able to scale / be distributed
 
 ## Structure
 ```
-client --> broker (MoM) --> cache system
-                  | |
-                  | |  (broker is
-                  | |  the one doing the
-                  | |       accounting)
-                  \ /
-                   +
-              accounting
+   O     +----------+       +----------+
+  /|\ >->|  Client  |------>|   MoM    |\
+   ^     +-----+----+       +----------+ \
+  / \          |                          \
+  User  +------+----------+                \
+        |    Blockchain   |<--+             \
+        | Smart Contracts |   |         +----+---------+
+        +-----------------+   +-------->|  Middleware  |
+                                        +------+-------+
+                                               |
+                                               |
+                                        +------+-----+  
+                                        |   Cache    |  
+                                        +------------+  
 ```
 
 Notes:
-* the broker is a MQTT (for now). 
+* the Mom is MQTT compliant (for now). 
     * pro:
         * lightweight
         * easy to use / hard to missuse
@@ -30,10 +36,12 @@ Notes:
 * cache
     * aims to be cache agnostic.
     * using memcached in the meantime.
-    * 
 * accounting
     * PoA blockchain (recommanded by my suppervisors).
     * besu hyperledger
+* MW:
+	* should be client and interface dependant, so on a blockchain verif node ?
+		* if client or cacher dependant, might cheat
 
 ## usage
 runing the mqtt: 
@@ -44,6 +52,9 @@ running memcached:
 `docker pull memcached
 docker run --name memcache -d -p 11211:11211 memcached`  
 
+running the blockchain:
+`cd caramell-blockchain ; sh blockchainInit/init.sh ; docker compose up`
+
 client: `cargo run --bin caramell-client`  
 server: `cargo run --bin caramell-server`  
 
@@ -52,5 +63,4 @@ server: `cargo run --bin caramell-server`
 * gotta do client better
 * finish base of server
 * do server => blockchain
-* mqqt => blockchain as well?
-* calc costs
+* mqtt => blockchain as well?

@@ -10,10 +10,23 @@ async fn main() {
     //remember unread msg
     mqttoptions
         .set_keep_alive(Duration::from_secs(60))
-        .set_clean_session(false);
+        .set_clean_session(true);
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-    client.subscribe("msg/srv", QoS::AtLeastOnce).await.unwrap();
+
+    client
+        .publish(
+            format!(
+                "srvList/{}:{}",
+                1,
+                params.cache_port.unwrap()
+            ),
+            QoS::AtLeastOnce,
+            true,
+            params.cache_name.unwrap(),
+        )
+        .await
+        .unwrap();
 
     let mem_client = utils::MemcacheClient::new(
         String::from(params.cache_ip.unwrap()),
@@ -23,8 +36,12 @@ async fn main() {
 
     while let Ok(notification) = eventloop.poll().await {
         let res = utils::check_publish(notification, mem_client.clone());
-        if res.is_err() {
-            panic!("MemcacheError: {}", res.err().unwrap());
+        match res {
+            Err(utils::ErrorBrokerMemcached::MemcacheError(e)) => panic!("MemcacheError: {:?}", e),
+            Ok(string) => {
+                println!("{}", string)
+            }
+            _ => {}
         }
     }
 }

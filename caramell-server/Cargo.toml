@@ -17,6 +17,7 @@ toml = "0.7.4"
 
 [params]
 cache_ip = "localhost"
+cache_name = "Cache420"
 cache_port = 11211
 broker_ip = "localhost"
 broker_port = 1883
