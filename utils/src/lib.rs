@@ -1,8 +1,9 @@
 use bytes::Bytes;
 use memcache;
-use rumqttc::{self, RecvError, RecvTimeoutError};
+pub use primitive_types::H160;
 use rumqttc::v5::mqttbytes::QoS;
-use rumqttc::v5::{Client, Event, EventLoop, Incoming, ClientError, Connection};
+use rumqttc::v5::{Client, ClientError, Connection, Event, EventLoop, Incoming};
+use rumqttc::{self, RecvError, RecvTimeoutError};
 use serde::Deserialize;
 use std::error::Error;
 use std::fs::File;
@@ -13,7 +14,7 @@ use tokio::{task, time};
 pub mod blockchain;
 pub mod contracts;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Config {
     pub params: Option<Params>,
     pub blockchain: Option<Blockchain>,
@@ -27,6 +28,8 @@ pub struct Params {
     pub cache_port: Option<u16>,
     pub cache_name: Option<String>,
     pub id: String,
+    pub contract_addr: Option<H160>,
+    pub pub_key: Option<H160>
 }
 
 #[derive(Deserialize, Clone)]
@@ -45,7 +48,7 @@ pub enum ErrorBrokerMemcached {
     NotInsertion,
     MemcacheError(memcache::MemcacheError),
     BadBroker,
-    ClientError(ClientError)
+    ClientError(ClientError),
 }
 
 #[derive(Debug)]
@@ -83,18 +86,19 @@ impl MemcacheClient {
     }
 }
 
-/// check if mqtt has any unread message
+/// check if mqtt has any unread message and try to insert them.
+/// returns inserted string if any, or ""
 pub fn check_publish(
-    msg: rumqttc::Event,
+    msg: rumqttc::v5::Event,
     mem_client: MemcacheClient,
 ) -> Result<String, ErrorBrokerMemcached> {
     match msg {
-        rumqttc::Event::Outgoing(notif) => {
+        rumqttc::v5::Event::Outgoing(notif) => {
             println!("Outgoing {:?}", notif);
             Err(ErrorBrokerMemcached::Outgoing)
         }
-        rumqttc::Event::Incoming(notif) => match notif {
-            rumqttc::Packet::Publish(n) => {
+        rumqttc::v5::Event::Incoming(notif) => match notif {
+            rumqttc::v5::mqttbytes::v5::Packet::Publish(n) => {
                 println!("{:?}", n.payload);
                 check_mem(n.payload, mem_client)
             }
@@ -128,18 +132,16 @@ pub fn load_toml(path: &str) -> Config {
         .unwrap()
         .read_to_string(&mut cargo_text)
         .unwrap();
-    let params: Config = toml::from_str(cargo_text.as_str()).unwrap();
-    params
+    let cfg: Config = toml::from_str(cargo_text.as_str()).unwrap();
+    cfg
 }
 
 fn subscribe_all(client: Client) -> Result<(), ClientError> {
-    client
-        .subscribe("srvList/#", QoS::AtLeastOnce)
+    client.subscribe("srvList/#", QoS::AtLeastOnce)
 }
 
 fn unsubscribe_all(client: Client) -> Result<(), ClientError> {
-    client
-        .unsubscribe("srvList/#")
+    client.unsubscribe("srvList/#")
 }
 
 /// extract broker info from a mqtt srvList msg
@@ -162,7 +164,6 @@ pub fn get_list_cacher_from_broker(
     client: rumqttc::v5::Client,
     mut connection: Connection,
 ) -> Result<std::vec::Vec<Broker>, Box<dyn std::error::Error>> {
-
     subscribe_all(client.clone())?;
 
     let mut res = vec![];
@@ -171,7 +172,7 @@ pub fn get_list_cacher_from_broker(
         let x = connection.recv_timeout(Duration::from_millis(1000));
         println!("{x:?}");
         match x {
-            Err(_)  => { break }, // first error has to be timeout
+            Err(_) => break, // first error has to be timeout
             Ok(Ok(Event::Incoming(Incoming::Publish(p)))) => {
                 println!("Topic: {:?}, Payload: {:?}", p.topic, p.payload.clone());
                 let tmp = extract_broker(p.topic.clone(), p.payload.clone());
@@ -181,18 +182,19 @@ pub fn get_list_cacher_from_broker(
                     Err(e) => println!("Could not retrive broker: {:?}", e),
                 };
                 //break at end of list. Mqtt sends list in alphabetical order.
-            },
+            }
             Ok(Ok(Event::Incoming(i))) => {
                 println!("Incoming = {i:?}");
-            },
+            }
             Ok(Ok(Event::Outgoing(o))) => {
                 println!("Outgoing = {o:?}")
-            },
-            Ok(Err(e)) => { //second error is con error
+            }
+            Ok(Err(e)) => {
+                //second error is con error
                 println!("Error in get list cacher: {:?}", e);
             }
         }
-    };
+    }
 
     Ok(res)
 }

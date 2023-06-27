@@ -14,6 +14,9 @@ rumqttc = "0.21.0"
 serde = { version = "1.0.163", features = ["derive"] }
 tokio = { version = "1.28.1", features = ["rt-multi-thread"] }
 toml = "0.7.4"
+ethers = "2.0.7"
+ethers-middleware = "2.0.7"
+ethers-providers = "2.0.7"
 
 [params]
 cache_ip = "localhost"
@@ -22,3 +25,10 @@ cache_port = 11211
 broker_ip = "localhost"
 broker_port = 1883
 id = "server1"
+
+[blockchain]
+rpc_url_http = "http://localhost:8545"
+rpc_url_ws = "ws://localhost:8645"
+contract_addr = "0x5897eE8540f83c1cEdaCC9AcfFfcb1f5c355E085"
+contract_unowned_address = "0xFb0fF05A0CC7fE7944e3b4e9c6ade052daC6534C"
+wallet_key = "0x01e0106d28df9ad6b700186d280a41cdd85c769b1fb50277f2b2239fa6064ca0"
