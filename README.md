@@ -61,6 +61,7 @@ server: `cargo run --bin caramell-server`
 ## TODO
 * for now client sends dummy data, and server inserts it into memcache
 * gotta do client better
-* finish base of server
-* do server => blockchain
-* mqtt => blockchain as well?
+* ~~finish base of server~~
+* ~~do server => blockchain~~
+* ~~mqtt => blockchain as well?~~
+* paying mechanism: contract witholding (?) gas, then retrievable by cache owner
