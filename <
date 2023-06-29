@@ -12,17 +12,12 @@ pub async fn init_broker_srvlist(
     params: utils::Params,
     blck_p: utils::Blockchain,
 ) -> Result<(), rumqttc::v5::ClientError> {
-
-    let addr = format!("{:?}", blck_p.contract_addr);
-
-    println!("cfg {:?}, payload {:?}", blck_p.contract_addr, addr);
-
+    let b = blck_p.contract_addr.as_bytes()
     client
         .publish(
             format!("srvList/{}:{}", params.broker_ip, params.broker_port),
             QoS::AtLeastOnce,
             true,
-            addr
         )
         .await
 }

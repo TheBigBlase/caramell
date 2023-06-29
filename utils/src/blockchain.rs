@@ -71,7 +71,7 @@ async fn create_client_factory(
     Box<dyn std::error::Error>,
 > {
     let rpc_url = config.blockchain.clone().unwrap().rpc_url_ws;
-    let contract_addr: H160 = config.blockchain.clone().unwrap().contract_addr.parse()?;
+    let contract_addr: H160 = config.blockchain.clone().unwrap().contract_addr;
 
     let provider: Provider<Ws> = Provider::<Ws>::connect(rpc_url).await?;
 
@@ -84,11 +84,16 @@ async fn create_client_factory(
     ))
 }
 
-/// get client's contract address w/ wallet & factory address (in config)
+/// get client's contract address w/ given wallet & factory address
 pub async fn get_client_contract_addr(
-    config: crate::Config,
+    mut config: crate::Config,
+    address: Option<H160>,
+    wallet: Wallet<SigningKey>
 ) -> Result<H160, Box<dyn std::error::Error>> {
-    let wallet = create_wallet(config.clone()).await?;
+
+    if address.is_some() {
+        config.blockchain.as_mut().unwrap().contract_addr = address.unwrap();
+    }
 
     let factory = create_client_factory(config, wallet.clone()).await?;
 

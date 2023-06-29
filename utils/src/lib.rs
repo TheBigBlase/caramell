@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 use std::fs::File;
 use std::io::Read;
+use std::str::FromStr;
 use std::time::Duration;
 
 pub mod blockchain;
@@ -36,8 +37,8 @@ pub struct Blockchain {
     pub rpc_url_http: String,
     pub rpc_url_ws: String,
     pub wallet_key: String,
-    pub contract_addr: String,
-    pub contract_unowned_addr: Option<String>,
+    pub contract_addr: H160,
+    pub contract_unowned_addr: Option<H160>,
 }
 
 #[derive(Debug)]
@@ -52,9 +53,9 @@ pub enum ErrorBrokerMemcached {
 
 #[derive(Debug)]
 pub struct Broker {
-    ip: String,
-    port: u16,
-    name: String,
+    pub ip: String,
+    pub port: u16,
+    pub address: H160,
 }
 
 #[derive(Clone)]
@@ -146,15 +147,15 @@ fn unsubscribe_all(client: Client) -> Result<(), ClientError> {
 /// extract broker info from a mqtt srvList msg
 fn extract_broker(topic: Bytes, payload: Bytes) -> Result<Broker, Box<dyn std::error::Error>> {
     let topic = String::from_utf8(topic.to_vec())?;
-    let payload = String::from_utf8(payload.to_vec()).unwrap();
     let mut it = topic.split(":");
-    let ip = it.next().unwrap();
-    let port = it.next().unwrap();
+    let ip = it.next().unwrap().try_into()?;
+    let port = it.next().unwrap().parse::<u16>()?.try_into()?;
+    let address = String::from_utf8(payload.to_vec())?.parse()?;
 
     Ok(Broker {
-        ip: ip.into(),
-        port: port.parse().unwrap(),
-        name: payload,
+        ip,
+        port,
+        address
     })
 }
 
@@ -169,25 +170,18 @@ pub fn get_list_cacher_from_broker(
 
     loop {
         let x = connection.recv_timeout(Duration::from_millis(1000));
-        println!("{x:?}");
         match x {
             Err(_) => break, // first error has to be timeout
             Ok(Ok(Event::Incoming(Incoming::Publish(p)))) => {
-                println!("Topic: {:?}, Payload: {:?}", p.topic, p.payload.clone());
                 let tmp = extract_broker(p.topic.clone(), p.payload.clone());
 
                 match tmp {
                     Ok(b) => res.push(b),
-                    Err(e) => println!("Could not retrive broker: {:?}", e),
+                    Err(e) => println!("Could not retrive broker: {:?}, msg: {:?}", e, p),
                 };
                 //break at end of list. Mqtt sends list in alphabetical order.
             }
-            Ok(Ok(Event::Incoming(i))) => {
-                println!("Incoming = {i:?}");
-            }
-            Ok(Ok(Event::Outgoing(o))) => {
-                println!("Outgoing = {o:?}")
-            }
+            Ok(Ok(_)) => (),
             Ok(Err(e)) => {
                 //second error is con error
                 println!("Error in get list cacher: {:?}", e);

@@ -1,13 +1,16 @@
 extern crate utils;
 
-use rumqttc::v5::{mqttbytes::QoS, AsyncClient, MqttOptions};
+use rumqttc::v5::{AsyncClient, MqttOptions};
 use std::time::Duration;
 mod server_utils;
 
 #[tokio::main]
-async fn main() {
-    let params = utils::load_toml("caramell-server").params.unwrap();
-    let mut mqttoptions = MqttOptions::new(params.id, params.broker_ip, params.broker_port);
+async fn main() -> Result<(), Box<dyn std::error::Error>>{
+    let cfg = utils::load_toml("caramell-server");
+    let params = cfg.params.unwrap();
+    let blockchain_p = cfg.blockchain.unwrap();
+
+    let mut mqttoptions = MqttOptions::new(params.clone().id, params.clone().broker_ip, params.broker_port);
 
     //remember unread msg
     mqttoptions
@@ -16,15 +19,7 @@ async fn main() {
 
     let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
 
-    client
-        .publish(
-            format!("srvList/{}:{}", 1, params.cache_port.unwrap()),
-            QoS::AtLeastOnce,
-            true,
-            params.cache_name.unwrap(),
-        )
-        .await
-        .unwrap();
+    server_utils::init_broker_srvlist(client, params.clone(), blockchain_p).await?;
 
     let mem_client = utils::MemcacheClient::new(
         String::from(params.cache_ip.unwrap()),
@@ -34,4 +29,5 @@ async fn main() {
 
     // run forever
     let _handle = server_utils::serve_trust(eventloop, mem_client).await;
+    Ok(())
 }
