@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cfg = utils::load_toml("caramell-client");
     let params: utils::Params = cfg.params.unwrap();
-    let rpc_url = cfg.blockchain.expect("Need blockchain block in cfg").rpc_url_http;
+    let rpc_url = cfg.blockchain.expect("Need blockchain block in cfg").rpc_url_ws;
 
     let mut mqttoptions = MqttOptions::new(
         params.id.clone(),
