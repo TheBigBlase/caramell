@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::contracts::{
-    client_contract::Data,
+    client_contract::{clientContract, Data},
     client_factory::{clientFactory, ContractCreatedFilter},
 };
 
@@ -11,6 +11,7 @@ use ethers_middleware::core::k256::ecdsa::SigningKey;
 use ethers_middleware::SignerMiddleware;
 use ethers_providers::{Provider, StreamExt, Ws};
 use primitive_types::{H160, U256};
+use tokio::runtime::Runtime;
 
 /// get address of contract, listening to events. The returned contract is owned by the caller
 pub async fn get_address_contract_from_event<M: 'static, D>(
@@ -63,6 +64,17 @@ pub async fn create_wallet(
     Ok(wallet)
 }
 
+pub async fn create_middleware(
+    url: &str,
+    wallet: Wallet<SigningKey>,
+) -> Result<SignerMiddleware<Provider<Ws>, LocalWallet>, Box<dyn std::error::Error>> {
+    let provider = Provider::<Ws>::connect(url).await?;
+
+    let mw = SignerMiddleware::new(provider.clone(), wallet.clone().with_chain_id(1337 as u64));
+
+    Ok(mw)
+}
+
 async fn create_client_factory(
     config: crate::Config,
     wallet: LocalWallet,
@@ -73,14 +85,11 @@ async fn create_client_factory(
     let rpc_url = config.blockchain.clone().unwrap().rpc_url_ws;
     let contract_addr: H160 = config.blockchain.clone().unwrap().contract_addr;
 
-    let provider: Provider<Ws> = Provider::<Ws>::connect(rpc_url).await?;
-
-    let middleware =
-        SignerMiddleware::new(provider.clone(), wallet.clone().with_chain_id(1337 as u64));
+    let mw = create_middleware(rpc_url.as_str(), wallet).await?;
 
     Ok(clientFactory::new(
         contract_addr.clone(),
-        Arc::new(middleware.clone()),
+        Arc::new(mw.clone()),
     ))
 }
 
@@ -88,9 +97,8 @@ async fn create_client_factory(
 pub async fn get_client_contract_addr(
     mut config: crate::Config,
     address: Option<H160>,
-    wallet: Wallet<SigningKey>
+    wallet: Wallet<SigningKey>,
 ) -> Result<H160, Box<dyn std::error::Error>> {
-
     if address.is_some() {
         config.blockchain.as_mut().unwrap().contract_addr = address.unwrap();
     }
@@ -113,4 +121,21 @@ pub async fn get_client_contract_addr(
     }
 
     Ok(client_addr)
+}
+
+pub fn create_client(
+    address: H160,
+    wallet: LocalWallet,
+    url: &str,
+) -> Result<
+    clientContract<SignerMiddleware<ethers_providers::Provider<Ws>, LocalWallet>>,
+    Box<dyn std::error::Error>,
+> {
+    let rt = Runtime::new().unwrap();
+    let mw_promise = create_middleware(url, wallet);
+
+    let mw = rt.block_on(mw_promise)?;
+
+    let client = clientContract::new(address, Arc::new(mw));
+    Ok(client)
 }

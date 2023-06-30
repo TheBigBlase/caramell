@@ -7,15 +7,17 @@ use utils::blockchain;
 
 use utils::MemcacheClient;
 
+/// sends cacher's address to the broker
 pub async fn init_broker_srvlist(
     client: AsyncClient,
     params: utils::Params,
     blck_p: utils::Blockchain,
 ) -> Result<(), rumqttc::v5::ClientError> {
 
+    // ToString only returns in display mode, and since our str is too long it 
+    // also adds a "..." in the middle of our string :/
+    // so we format it in debug mode TODO find another way
     let addr = format!("{:?}", blck_p.contract_addr);
-
-    println!("cfg {:?}, payload {:?}", blck_p.contract_addr, addr);
 
     client
         .publish(
