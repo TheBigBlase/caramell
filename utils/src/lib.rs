@@ -2,14 +2,16 @@ use bytes::Bytes;
 use memcache;
 pub use primitive_types::H160;
 use rumqttc::v5::mqttbytes::QoS;
-use rumqttc::v5::{Client, ClientError, Connection, Event, Incoming};
+use rumqttc::v5::{AsyncClient, Client, ClientError, Connection, Event, EventLoop, Incoming};
 use rumqttc::{self};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::time::timeout;
 
 pub mod blockchain;
 pub mod contracts;
@@ -51,7 +53,7 @@ pub enum ErrorBrokerMemcached {
     ClientError(ClientError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Broker {
     pub ip: String,
     pub port: u16,
@@ -136,8 +138,8 @@ pub fn load_toml(path: &str) -> Config {
     cfg
 }
 
-fn subscribe_all(client: Client) -> Result<(), ClientError> {
-    client.subscribe("srvList/#", QoS::AtLeastOnce)
+async fn subscribe_all(client: AsyncClient) -> Result<(), ClientError> {
+    client.subscribe("srvList/#", QoS::AtLeastOnce).await
 }
 
 fn unsubscribe_all(client: Client) -> Result<(), ClientError> {
@@ -152,27 +154,23 @@ fn extract_broker(topic: Bytes, payload: Bytes) -> Result<Broker, Box<dyn std::e
     let port = it.next().unwrap().parse::<u16>()?.try_into()?;
     let address = String::from_utf8(payload.to_vec())?.parse()?;
 
-    Ok(Broker {
-        ip,
-        port,
-        address
-    })
+    Ok(Broker { ip, port, address })
 }
 
 /// get list of all cacher according to broker
-pub fn get_list_cacher_from_broker(
-    client: rumqttc::v5::Client,
-    mut connection: Connection,
+pub async fn get_list_cacher_from_broker(
+    client: &rumqttc::v5::AsyncClient,
+    mut evt_loop: EventLoop,
 ) -> Result<std::vec::Vec<Broker>, Box<dyn std::error::Error>> {
-    subscribe_all(client.clone())?;
+    subscribe_all(client.clone()).await?;
 
     let mut res = vec![];
 
-    loop {
-        let x = connection.recv_timeout(Duration::from_millis(1000));
-        match x {
-            Err(_) => break, // first error has to be timeout
-            Ok(Ok(Event::Incoming(Incoming::Publish(p)))) => {
+    for _ in 1..=10 {
+        let broker = timeout(Duration::from_millis(500), evt_loop.poll()).await;
+        match broker {
+            Ok(Ok(Event::Incoming(Incoming::Publish(ref p)))) => {
+
                 let tmp = extract_broker(p.topic.clone(), p.payload.clone());
 
                 match tmp {
@@ -180,14 +178,14 @@ pub fn get_list_cacher_from_broker(
                     Err(e) => println!("Could not retrive broker: {:?}, msg: {:?}", e, p),
                 };
                 //break at end of list. Mqtt sends list in alphabetical order.
-            }
-            Ok(Ok(_)) => (),
-            Ok(Err(e)) => {
-                //second error is con error
-                println!("Error in get list cacher: {:?}", e);
-            }
-        }
-    }
+            },
+            Ok(_) => (),
+            Err(_) => {
+                println!("Timeout");
+                break;
+            },
+        };
+    };
 
-    Ok(res)
+    Ok(res.to_vec())
 }

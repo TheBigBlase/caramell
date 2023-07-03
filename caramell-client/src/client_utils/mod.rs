@@ -5,11 +5,11 @@ use ethers::signers::{LocalWallet, Signer};
 use ethers_middleware::SignerMiddleware;
 use ethers_providers::{Provider, Ws};
 
-use rumqttc::v5::{Client, MqttOptions};
+use rumqttc::v5::{Client, MqttOptions, AsyncClient};
 use tokio::runtime::Runtime;
 use utils::{blockchain, contracts::client_contract::clientContract, Broker, Config};
 
-pub fn broker_list(cfg: Config) -> Result<Vec<Broker>, Box<dyn std::error::Error>> {
+pub async fn broker_list(cfg: Config) -> Result<Vec<Broker>, Box<dyn std::error::Error>> {
     let params: utils::Params = cfg.params.unwrap();
 
     let mut mqttoptions = MqttOptions::new(
@@ -20,9 +20,9 @@ pub fn broker_list(cfg: Config) -> Result<Vec<Broker>, Box<dyn std::error::Error
     // useless, keeping it just in case :)
     mqttoptions.set_keep_alive(Duration::from_secs(60));
 
-    let (client, eventloop) = Client::new(mqttoptions, 10);
+    let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
 
-    utils::get_list_cacher_from_broker(client, eventloop)
+    utils::get_list_cacher_from_broker(&client, eventloop).await
 }
 
 fn init_contract(
