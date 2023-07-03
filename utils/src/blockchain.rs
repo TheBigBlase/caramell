@@ -139,3 +139,31 @@ pub fn create_client(
     let client = clientContract::new(address, Arc::new(mw));
     Ok(client)
 }
+
+
+pub fn init_contract(
+    cfg: crate::Config,
+    brk_lst: Vec<crate::Broker>,
+) -> Result<clientContract<SignerMiddleware<Provider<Ws>, LocalWallet>>, Box<dyn std::error::Error>>
+{
+    let rpc_url = cfg.clone().blockchain.unwrap().rpc_url_ws;
+
+    let broker: &crate::Broker = brk_lst.first().unwrap();
+
+    let address = broker.address;
+
+    // "await" in a sync func:
+    let rt = Runtime::new().unwrap();
+    let promise_wallet = create_wallet(cfg.clone());
+    let wallet = rt.block_on(promise_wallet)?;
+
+    let promise_contract =
+        get_client_contract_addr(cfg.clone(), Some(address), wallet.clone());
+    let client_contract_addr = rt.block_on(promise_contract)?;
+
+    println!("contract address: {:?}", client_contract_addr);
+
+    let client_contract = create_client(address, wallet, rpc_url.as_str())?;
+
+    Ok(client_contract)
+}

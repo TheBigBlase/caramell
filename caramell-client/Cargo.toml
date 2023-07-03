@@ -11,7 +11,7 @@ rumqttc = "0.21.0"
 serde = { version = "1.0.163", features = ["derive"] }
 tokio = { version = "1.28.1", features = ["rt-multi-thread"] }
 toml = "0.7.4"
-rocket = "=0.5.0-rc.3"
+rocket = { version = "=0.5.0-rc.3", features = ["serde_json", "json"] }
 ethers = "2.0.7"
 ethers-providers = "2.0.7"
 ethers-middleware = "2.0.7"

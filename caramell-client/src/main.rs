@@ -1,23 +1,17 @@
 extern crate utils;
 
 mod client_utils;
-use rumqttc::v5::{Client, MqttOptions};
-use std::net::IpAddr;
-use std::net::Ipv4Addr;
-use std::time::Duration;
-use tokio::runtime::Runtime;
-use utils::blockchain;
-use utils::Broker;
 use rocket::Config;
+use rocket::serde::json::Json;
 #[macro_use] extern crate rocket;
 
 // TODO make a rest api :)
 
 #[get("/brokerList")]
-async fn broker_list() -> String {
+async fn broker_list() -> Json<Vec<utils::Broker>> {
     let crml_cfg = utils::load_toml("caramell-server");//TODO dont re read at every call
     let lst = client_utils::broker_list(crml_cfg).await.ok();
-    serde_json::to_string(&lst.unwrap()).unwrap()
+    Json(lst.unwrap())
 }
 
 #[get("/")]
