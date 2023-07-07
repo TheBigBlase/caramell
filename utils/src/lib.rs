@@ -3,13 +3,13 @@ use memcache;
 pub use primitive_types::H160;
 use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, Client, ClientError, Connection, Event, EventLoop, Incoming};
-use rumqttc::{self};
 use serde::{Deserialize, Serialize};
 
 use std::fs::File;
 use std::io::Read;
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio::sync::mpsc::Receiver;
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -157,7 +157,8 @@ fn extract_broker(topic: Bytes, payload: Bytes) -> Result<Broker, Box<dyn std::e
     Ok(Broker { ip, port, address })
 }
 
-/// get list of all cacher according to broker
+/// get list of all cacher according to broker.
+/// Takes ownership of eventloop. Therefore, use it as a one shot command
 pub async fn get_list_cacher_from_broker(
     client: &rumqttc::v5::AsyncClient,
     mut evt_loop: EventLoop,
@@ -188,4 +189,18 @@ pub async fn get_list_cacher_from_broker(
     };
 
     Ok(res.to_vec())
+}
+
+
+/// listens to new cacher events, triggered from handle_eventloop
+/// Takes ownership of eventloop. Therefore, use it as a one shot command
+pub async fn listen_list_cacher_from_broker(
+    mut rx: Receiver<Bytes>
+) -> Result<(), Box<dyn std::error::Error>> {
+    loop {
+        let topic = rx.recv().await.unwrap_or(Bytes::default());
+        let msg = rx.recv().await.unwrap_or(Bytes::default());
+
+        let broker = extract_broker(topic, msg)?;
+    }
 }

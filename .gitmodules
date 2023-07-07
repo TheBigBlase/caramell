@@ -1,3 +1,6 @@
 [submodule "caramell-blockchain"]
 	path = caramell-blockchain
 	url = https://github.com/thebigblase/caramell-blockchain
+[submodule "caramell-frontend"]
+	path = caramell-frontend
+	url = https://github.com/thebigblase/caramell-frontend

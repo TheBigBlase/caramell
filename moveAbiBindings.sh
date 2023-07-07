@@ -18,21 +18,25 @@ for i in "$@"; do
 done
 
 genAbi() {
+	echo generating abi...
 	cd $base/caramell-blockchain/caramell-blockchain/truffle
 	truffle compile
 	cd $base
 }
 
 moveAbiToBindings() {
+	echo moving abi to bindings...
 	cp -r $base/caramell-blockchain/caramell-blockchain/truffle/build/contracts \
 		$base/createBindings/
 }
 
 moveBindingsToDest() {
+	echo moving binding to dest
 	cp -r $base/createBindings/src/contracts $base/utils/src/
 }
 
 clean() {
+	echo cleaning...
 	rm -rf $base/createBindings/contracts \
 		$base/caramell-blockchain/caramell-blockchain/w3rs/src/contracts \
 		$base/caramell-blockchain/caramell-blockchain/truffle/build/ \
@@ -41,8 +45,7 @@ clean() {
 
 
 # clean everything, regen fresh abi & prep for bindings
-([ $CLEAN ] && echo "cleaning..." && clean || [ 1 ]) && genAbi && moveAbiToBindings
+([ $CLEAN ] && clean || [ 1 ]) && genAbi && moveAbiToBindings
 
 # gen bindings & put them into dest
-cargo run --bin createBindings && moveBindingsToDest
-echo "all done, copied to $base/utils/src/"
+cargo run --bin createBindings && (moveBindingsToDest && echo "all done, copied to $base/utils/src/") || echo Failure !

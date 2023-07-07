@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::contracts::{
-    client_contract::{clientContract, Data},
-    client_factory::{clientFactory, ContractCreatedFilter},
+    client_contract::{ClientContract, Data},
+    client_factory::{ClientFactory, ContractCreatedFilter},
 };
 
 use ethers::signers::{LocalWallet, Signer, Wallet};
@@ -12,6 +12,10 @@ use ethers_middleware::SignerMiddleware;
 use ethers_providers::{Provider, StreamExt, Ws};
 use primitive_types::{H160, U256};
 use tokio::runtime::Runtime;
+
+
+// Type alias !
+pub type ClientContractAlias = ClientContract<SignerMiddleware<Provider<Ws>, Wallet<SigningKey>>> ;
 
 /// get address of contract, listening to events. The returned contract is owned by the caller
 pub async fn get_address_contract_from_event<M: 'static, D>(
@@ -43,7 +47,7 @@ pub fn create_data(name: &str, time_to_store: U256) -> Data {
         name: String::from(name),
         data: U256::zero(), // pointer location, set by contract
         time_to_store,
-        time_created: U256::zero(), //set by contract
+        time_created: U256::zero(), //set by contract }
     }
 }
 
@@ -79,7 +83,7 @@ async fn create_client_factory(
     config: crate::Config,
     wallet: LocalWallet,
 ) -> Result<
-    clientFactory<SignerMiddleware<Provider<Ws>, Wallet<SigningKey>>>,
+    ClientFactory<SignerMiddleware<Provider<Ws>, Wallet<SigningKey>>>,
     Box<dyn std::error::Error>,
 > {
     let rpc_url = config.blockchain.clone().unwrap().rpc_url_ws;
@@ -87,7 +91,7 @@ async fn create_client_factory(
 
     let mw = create_middleware(rpc_url.as_str(), wallet).await?;
 
-    Ok(clientFactory::new(
+    Ok(ClientFactory::new(
         contract_addr.clone(),
         Arc::new(mw.clone()),
     ))
@@ -123,28 +127,25 @@ pub async fn get_client_contract_addr(
     Ok(client_addr)
 }
 
-pub fn create_client(
+pub async fn create_client(
     address: H160,
     wallet: LocalWallet,
     url: &str,
 ) -> Result<
-    clientContract<SignerMiddleware<ethers_providers::Provider<Ws>, LocalWallet>>,
+    ClientContract<SignerMiddleware<ethers_providers::Provider<Ws>, LocalWallet>>,
     Box<dyn std::error::Error>,
 > {
-    let rt = Runtime::new().unwrap();
-    let mw_promise = create_middleware(url, wallet);
+    let mw = create_middleware(url, wallet).await?;
+    let client = ClientContract::new(address, Arc::new(mw));
 
-    let mw = rt.block_on(mw_promise)?;
-
-    let client = clientContract::new(address, Arc::new(mw));
     Ok(client)
 }
 
 
-pub fn init_contract(
+pub async fn init_contract(
     cfg: crate::Config,
     brk_lst: Vec<crate::Broker>,
-) -> Result<clientContract<SignerMiddleware<Provider<Ws>, LocalWallet>>, Box<dyn std::error::Error>>
+) -> Result<ClientContract<SignerMiddleware<Provider<Ws>, LocalWallet>>, Box<dyn std::error::Error>>
 {
     let rpc_url = cfg.clone().blockchain.unwrap().rpc_url_ws;
 
@@ -163,7 +164,7 @@ pub fn init_contract(
 
     println!("contract address: {:?}", client_contract_addr);
 
-    let client_contract = create_client(address, wallet, rpc_url.as_str())?;
+    let client_contract = create_client(client_contract_addr, wallet, rpc_url.as_str()).await?;
 
     Ok(client_contract)
 }
