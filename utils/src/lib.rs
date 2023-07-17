@@ -60,6 +60,16 @@ pub struct Broker {
     pub address: H160,
 }
 
+impl Broker {
+    pub fn default() -> Self {
+        Broker{
+            ip: "".to_string(),
+            port: 0,
+            address: H160::zero()
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct MemcacheClient {
     client: memcache::Client,
@@ -138,16 +148,16 @@ pub fn load_toml(path: &str) -> Config {
     cfg
 }
 
-async fn subscribe_all(client: AsyncClient) -> Result<(), ClientError> {
+pub async fn subscribe_all(client: AsyncClient) -> Result<(), ClientError> {
     client.subscribe("srvList/#", QoS::AtLeastOnce).await
 }
 
-fn unsubscribe_all(client: Client) -> Result<(), ClientError> {
+pub fn unsubscribe_all(client: Client) -> Result<(), ClientError> {
     client.unsubscribe("srvList/#")
 }
 
 /// extract broker info from a mqtt srvList msg
-fn extract_broker(topic: Bytes, payload: Bytes) -> Result<Broker, Box<dyn std::error::Error>> {
+pub fn extract_broker(topic: Bytes, payload: Bytes) -> Result<Broker, Box<dyn std::error::Error>> {
     let topic = String::from_utf8(topic.to_vec())?;
     let mut it = topic.split(":");
     let ip = it.next().unwrap().try_into()?;
@@ -184,9 +194,9 @@ pub async fn get_list_cacher_from_broker(
             Err(_) => {
                 println!("Timeout");
                 break;
-            },
-        };
-    };
+            }
+        }
+    }
 
     Ok(res.to_vec())
 }

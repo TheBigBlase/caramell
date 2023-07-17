@@ -1,48 +1,35 @@
-use ethers_providers::Middleware;
-use rumqttc::{
-    v5::{mqttbytes::QoS, Event, Incoming},
-    Outgoing,
+use rumqttc::v5::{Event, Incoming};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
 };
-use std::time::Duration;
-use tokio::sync::mpsc;
-use utils::{
-    blockchain,
-    contracts::client_contract::{ClientContract, Data},
-    H160,
-};
+use utils::{blockchain, contracts::client_contract::Data};
 //TODO use utils::blockchain for all ethers stuff
 
 // used in main.rs to pass everything in one state obj
 
-pub struct AllStateParams {
-    pub contract: blockchain::ClientContractAlias,
-    pub config: utils::Config,
-    pub client: AsyncClient,
-}
-
 pub use rumqttc::v5::{AsyncClient, EventLoop, MqttOptions};
 use utils::{Broker, Config};
 
+async fn insert_vec_in_mutex(vec: Arc<Mutex<Vec<Broker>>>, brk: Broker) {
+    vec.lock().unwrap().push(brk.clone());
+}
+
 pub async fn handle_eventloop(
-    client: AsyncClient,
     mut evtloop: EventLoop,
-    mqtt_server_addr: &str,
+    vec: Arc<Mutex<Vec<Broker>>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (tx, rx) = mpsc::channel::<String>(2048);
-
-    client
-        .subscribe("srv/".to_string() + mqtt_server_addr, QoS::AtLeastOnce)
-        .await?;
-
-    client.subscribe("srvList/#", QoS::AtLeastOnce).await?;
-
     loop {
         let msg = evtloop.poll().await;
         match msg {
+            // TODO other events ?
             Ok(Event::Incoming(Incoming::Publish(p))) => {
                 let topic = p.topic;
                 if topic.starts_with("srvList".as_bytes()) {
+                    let brk = utils::extract_broker(topic, p.payload.clone())
+                        .unwrap();
 
+                    insert_vec_in_mutex(vec.clone(), brk).await;
                 }
             }
             Ok(_) => (),
@@ -70,6 +57,7 @@ pub async fn init_eventloop(
     Ok((client, eventloop))
 }
 
+/// DEPRECIATED keeping it if i need it after BUT DONT YOU DARE USE IT
 pub async fn broker_list(
     cfg: Config,
     client: AsyncClient,
@@ -97,7 +85,7 @@ pub async fn read_data(
     //      dht of mqtt lmao
 
     let res = Data::default();
-    Ok(res);
+    Ok(res)
 }
 
 /// returns Data retrieved from blockchain
@@ -110,6 +98,7 @@ pub async fn retrieve_data_location(
     Ok(res)
 }
 
+/// TODO :)
 pub async fn set_data(
     client: blockchain::ClientContractAlias,
     data_name: String,
