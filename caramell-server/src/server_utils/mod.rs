@@ -13,8 +13,7 @@ pub async fn init_broker_srvlist(
     params: utils::Params,
     blck_p: utils::Blockchain,
 ) -> Result<(), rumqttc::v5::ClientError> {
-
-    // ToString only returns in display mode, and since our str is too long it 
+    // ToString only returns in display mode, and since our str is too long it
     // also adds a "..." in the middle of our string :/
     // so we format it in debug mode TODO find another way
     let addr = format!("{:?}", blck_p.contract_addr);
@@ -24,16 +23,19 @@ pub async fn init_broker_srvlist(
             format!("srvList/{}:{}", params.broker_ip, params.broker_port),
             QoS::AtLeastOnce,
             true,
-            addr
+            addr,
         )
         .await
 }
 
 /// run broker interface forever
-async fn broker_serve_forever(mut eventloop: EventLoop, mem_client: MemcacheClient) {
+async fn broker_serve_forever(
+    mut eventloop: EventLoop,
+    mem_client: MemcacheClient,
+) {
     let _handle = task::spawn(async move {
         while let Ok(notification) = eventloop.poll().await {
-            let res = utils::check_publish(notification, mem_client.clone());
+            let res = mem_client.check_publish(notification);
             match res {
                 Err(utils::ErrorBrokerMemcached::MemcacheError(e)) => {
                     panic!("MemcacheError: {:?}", e)
@@ -41,7 +43,9 @@ async fn broker_serve_forever(mut eventloop: EventLoop, mem_client: MemcacheClie
                 Ok(string) => {
                     println!("{}", string)
                 }
-                _ => {}
+                Err(e) => {
+                    println!("error: {:?}", e)
+                }
             }
         }
     })
@@ -62,7 +66,8 @@ pub async fn serve_trust(
 
     let wallet = blockchain::create_wallet(config.clone()).await?;
 
-    let client_contract_addr = blockchain::get_client_contract_addr(config, None, wallet).await?;
+    let client_contract_addr =
+        blockchain::get_client_contract_addr(config, None, wallet).await?;
 
     println!("contract address: {:?}", client_contract_addr);
 

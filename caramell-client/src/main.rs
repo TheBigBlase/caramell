@@ -13,7 +13,7 @@ use rocket::{Config, Response};
 #[macro_use]
 extern crate rocket;
 use rocket::State;
-use utils::blockchain::{init_contract, create_wallet};
+use utils::blockchain::{create_wallet, init_contract};
 use utils::contracts::client_contract::Data;
 use utils::Broker;
 
@@ -46,16 +46,17 @@ async fn get(
         brk = brk_lst.first().unwrap().clone();
     }
 
-    let client = init_contract(cfg, brk)
-        .await
-        .unwrap();
+    let client = init_contract(cfg, brk).await.unwrap();
 
     let res;
 
     if name == "all".to_string() {
-        res = client_utils::retrieve_all_data_location(Arc::new(client)).await.ok()
+        res = client_utils::retrieve_all_data_location(Arc::new(client))
+            .await
+            .ok()
     } else {
-        let tmp = client_utils::retrieve_data_location(Arc::new(client), name).await;
+        let tmp =
+            client_utils::retrieve_data_location(Arc::new(client), name).await;
         let mut v = Vec::new();
         v.push(tmp.unwrap());
         res = Some(v);
@@ -79,9 +80,7 @@ async fn set(
         brk = brk_lst.first().unwrap().clone();
     }
 
-    let client = init_contract(cfg, brk)
-        .await
-        .unwrap();
+    let client = init_contract(cfg, brk).await.unwrap();
 
     //let res = client_utils::set_data(client, name).await.ok();
     Json(Data::default())

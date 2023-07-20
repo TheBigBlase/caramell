@@ -1,15 +1,17 @@
 use bytes::Bytes;
 use memcache;
 pub use primitive_types::H160;
-use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::mqttbytes::v5::Packet::Publish;
-use rumqttc::v5::{AsyncClient, Client, ClientError, Event, EventLoop, Incoming};
+use rumqttc::v5::mqttbytes::QoS;
+use rumqttc::v5::{
+    AsyncClient, Client, ClientError, Event, EventLoop, Incoming,
+};
 use serde::{Deserialize, Serialize};
 
 use std::fs::File;
 use std::io::Read;
-use tokio::sync::mpsc::Receiver;
 use std::time::Duration;
+use tokio::sync::mpsc::Receiver;
 use tokio::time::timeout;
 
 pub mod blockchain;
@@ -61,10 +63,10 @@ pub struct Broker {
 
 impl Broker {
     pub fn default() -> Self {
-        Broker{
+        Broker {
             ip: "".to_string(),
             port: 0,
-            address: H160::zero()
+            address: H160::zero(),
         }
     }
 }
@@ -95,42 +97,45 @@ impl MemcacheClient {
             Err(e) => Err(ErrorBrokerMemcached::MemcacheError(e)),
         }
     }
-}
 
-/// check if mqtt has any unread message and try to insert them.
-/// returns inserted string, or an error describing the event.
-pub fn check_publish(
-    msg: rumqttc::v5::Event,
-    mem_client: MemcacheClient,
-) -> Result<String, ErrorBrokerMemcached> {
-    match msg {
-        rumqttc::v5::Event::Outgoing(notif) => {
-            println!("Outgoing {:?}", notif);
-            Err(ErrorBrokerMemcached::Outgoing)
-        },
-        rumqttc::v5::Event::Incoming(Publish(n)) => {
+    /// check if mqtt has any unread message and try to insert them.
+    /// returns inserted string, or an error describing the event.
+    pub fn check_publish(
+        &self,
+        msg: rumqttc::v5::Event,
+    ) -> Result<String, ErrorBrokerMemcached> {
+        match msg {
+            Event::Outgoing(notif) => {
+                println!("Outgoing {:?}", notif);
+                Err(ErrorBrokerMemcached::Outgoing)
+            }
+            Event::Incoming(Publish(n)) => {
                 println!("{:?}", n.payload);
-                check_mem(n.payload, mem_client)
-        },
-        rumqttc::v5::Event::Incoming(_) => Err(ErrorBrokerMemcached::NotPublished),
+                self.check_mem(n.payload)
+            }
+            Event::Incoming(_) => Err(ErrorBrokerMemcached::NotPublished),
+        }
     }
-}
 
-/// insert msg in memcached if start w/ MEM
-/// returns the inserted string, or an error
-pub fn check_mem(msg: Bytes, mem_client: MemcacheClient) -> Result<String, ErrorBrokerMemcached> {
-    if msg.starts_with("MEM".as_bytes()) {
-        let tmp = String::from_utf8(msg.to_vec()).unwrap().to_string();
-        let mut tmp = tmp.split(";");
-        tmp.next();
+    /// insert msg in memcached if start w/ MEM
+    /// returns the inserted string, or an error
+    pub fn check_mem(
+        &self,
+        msg: Bytes,
+    ) -> Result<String, ErrorBrokerMemcached> {
+        if msg.starts_with("MEM".as_bytes()) {
+            let tmp = String::from_utf8(msg.to_vec()).unwrap().to_string();
+            let mut tmp = tmp.split(";");
+            tmp.next();
 
-        mem_client.insert_memcached(
-            tmp.next().unwrap().to_string(),
-            tmp.next().unwrap().to_string(),
-            tmp.next().unwrap().to_string().parse().unwrap(),
-        )
-    } else {
-        Err(ErrorBrokerMemcached::NotInsertion)
+            self.insert_memcached(
+                tmp.next().unwrap().to_string(),
+                tmp.next().unwrap().to_string(),
+                tmp.next().unwrap().to_string().parse().unwrap(),
+            )
+        } else {
+            Err(ErrorBrokerMemcached::NotInsertion)
+        }
     }
 }
 
@@ -151,12 +156,15 @@ pub async fn subscribe_all(client: AsyncClient) -> Result<(), ClientError> {
 }
 
 /// unsubscribe to topic server list
-pub fn unsubscribe_all(client: Client) -> Result<(), ClientError> {
-    client.unsubscribe("srvList/#")
+pub async fn unsubscribe_all(client: AsyncClient) -> Result<(), ClientError> {
+    client.unsubscribe("srvList/#").await
 }
 
 /// extract broker info from a mqtt srvList msg
-pub fn extract_broker(topic: Bytes, payload: Bytes) -> Result<Broker, Box<dyn std::error::Error>> {
+pub fn extract_broker(
+    topic: Bytes,
+    payload: Bytes,
+) -> Result<Broker, Box<dyn std::error::Error>> {
     let topic = String::from_utf8(topic.to_vec())?;
     let mut it = topic.split(":");
     let ip = it.next().unwrap().try_into()?;
@@ -180,15 +188,17 @@ pub async fn get_list_cacher_from_broker(
         let broker = timeout(Duration::from_millis(500), evt_loop.poll()).await;
         match broker {
             Ok(Ok(Event::Incoming(Incoming::Publish(ref p)))) => {
-
                 let tmp = extract_broker(p.topic.clone(), p.payload.clone());
 
                 match tmp {
                     Ok(b) => res.push(b),
-                    Err(e) => println!("Could not retrive broker: {:?}, msg: {:?}", e, p),
+                    Err(e) => println!(
+                        "Could not retrive broker: {:?}, msg: {:?}",
+                        e, p
+                    ),
                 };
                 //break at end of list. Mqtt sends list in alphabetical order.
-            },
+            }
             Ok(_) => (),
             Err(_) => {
                 println!("Timeout");

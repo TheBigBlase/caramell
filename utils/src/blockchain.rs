@@ -179,7 +179,6 @@ pub async fn init_contract(
 > {
     let rpc_url = cfg.clone().blockchain.unwrap().rpc_url_ws;
 
-
     let address = broker.address;
 
     // "await" in a sync func:
