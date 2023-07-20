@@ -4,6 +4,3 @@
 [submodule "caramell-frontend"]
 	path = caramell-frontend
 	url = https://github.com/thebigblase/caramell-frontend
-[submodule "ethers-rs"]
-	path = ethers-rs
-	url = https://github.com/gakonst/ethers-rs
