@@ -2,13 +2,12 @@ use bytes::Bytes;
 use memcache;
 pub use primitive_types::H160;
 use rumqttc::v5::mqttbytes::QoS;
-use rumqttc::v5::{AsyncClient, Client, ClientError, Connection, Event, EventLoop, Incoming};
+use rumqttc::v5::mqttbytes::v5::Packet::Publish;
+use rumqttc::v5::{AsyncClient, Client, ClientError, Event, EventLoop, Incoming};
 use serde::{Deserialize, Serialize};
 
 use std::fs::File;
 use std::io::Read;
-use std::str::FromStr;
-use std::sync::Arc;
 use tokio::sync::mpsc::Receiver;
 use std::time::Duration;
 use tokio::time::timeout;
@@ -99,7 +98,7 @@ impl MemcacheClient {
 }
 
 /// check if mqtt has any unread message and try to insert them.
-/// returns inserted string if any, or ""
+/// returns inserted string, or an error describing the event.
 pub fn check_publish(
     msg: rumqttc::v5::Event,
     mem_client: MemcacheClient,
@@ -108,14 +107,12 @@ pub fn check_publish(
         rumqttc::v5::Event::Outgoing(notif) => {
             println!("Outgoing {:?}", notif);
             Err(ErrorBrokerMemcached::Outgoing)
-        }
-        rumqttc::v5::Event::Incoming(notif) => match notif {
-            rumqttc::v5::mqttbytes::v5::Packet::Publish(n) => {
+        },
+        rumqttc::v5::Event::Incoming(Publish(n)) => {
                 println!("{:?}", n.payload);
                 check_mem(n.payload, mem_client)
-            }
-            _ => Err(ErrorBrokerMemcached::NotPublished),
         },
+        rumqttc::v5::Event::Incoming(_) => Err(ErrorBrokerMemcached::NotPublished),
     }
 }
 
@@ -148,10 +145,12 @@ pub fn load_toml(path: &str) -> Config {
     cfg
 }
 
+/// subscribe to topic server List
 pub async fn subscribe_all(client: AsyncClient) -> Result<(), ClientError> {
     client.subscribe("srvList/#", QoS::AtLeastOnce).await
 }
 
+/// unsubscribe to topic server list
 pub fn unsubscribe_all(client: Client) -> Result<(), ClientError> {
     client.unsubscribe("srvList/#")
 }
@@ -199,18 +198,4 @@ pub async fn get_list_cacher_from_broker(
     }
 
     Ok(res.to_vec())
-}
-
-
-/// listens to new cacher events, triggered from handle_eventloop
-/// Takes ownership of eventloop. Therefore, use it as a one shot command
-pub async fn listen_list_cacher_from_broker(
-    mut rx: Receiver<Bytes>
-) -> Result<(), Box<dyn std::error::Error>> {
-    loop {
-        let topic = rx.recv().await.unwrap_or(Bytes::default());
-        let msg = rx.recv().await.unwrap_or(Bytes::default());
-
-        let broker = extract_broker(topic, msg)?;
-    }
 }

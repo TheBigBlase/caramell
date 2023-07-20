@@ -4,9 +4,6 @@ use std::{
     time::Duration,
 };
 use utils::{blockchain, contracts::client_contract::Data};
-//TODO use utils::blockchain for all ethers stuff
-
-// used in main.rs to pass everything in one state obj
 
 pub use rumqttc::v5::{AsyncClient, EventLoop, MqttOptions};
 use utils::{Broker, Config};
@@ -40,6 +37,7 @@ pub async fn handle_eventloop(
     }
 }
 
+/// initialize the event loop and returns it with a client
 pub async fn init_eventloop(
     cfg: Config,
 ) -> Result<(AsyncClient, EventLoop), Box<dyn std::error::Error>> {
@@ -57,24 +55,17 @@ pub async fn init_eventloop(
     Ok((client, eventloop))
 }
 
-/// DEPRECIATED keeping it if i need it after BUT DONT YOU DARE USE IT
-pub async fn broker_list(
-    cfg: Config,
-    client: AsyncClient,
-    evtloop: EventLoop,
-) -> Result<Vec<Broker>, Box<dyn std::error::Error>> {
-    utils::get_list_cacher_from_broker(&client, evtloop).await
-}
-
 /// returns data retrieved from client.
 /// sends reqs through mqtt. Usefull for server side load balancing
 /// Upon server reception, opens a ftp socket and sends file(s) back
 /// through a ftp socket
+///
+/// Takes an async mqtt client that the server is connected to.
+/// TODO
 pub async fn read_data(
     client_contract: Arc<blockchain::ClientContractAlias>,
     data_name: String,
     client_mqtt: AsyncClient,
-    evtloop: EventLoop,
 ) -> Result<Data, Box<dyn std::error::Error>> {
     let data = retrieve_data_location(client_contract, data_name).await?;
 
@@ -88,12 +79,21 @@ pub async fn read_data(
     Ok(res)
 }
 
-/// returns Data retrieved from blockchain
-pub async fn retrieve_data_location(
+/// TODO :)
+pub async fn set_data(
     client: Arc<blockchain::ClientContractAlias>,
     data_name: String,
 ) -> Result<Data, Box<dyn std::error::Error>> {
-    let res = client.get_data(data_name).call().await?;
+    let res = Data::default();
+    Ok(res)
+}
+
+/// returns Data retrieved from blockchain
+pub async fn retrieve_data_location(
+    contract_client: Arc<blockchain::ClientContractAlias>,
+    data_name: String,
+) -> Result<Data, Box<dyn std::error::Error>> {
+    let res = contract_client.get_data(data_name).call().await?;
 
     Ok(res)
 }
@@ -107,11 +107,3 @@ pub async fn retrieve_all_data_location(
     Ok(res)
 }
 
-/// TODO :)
-pub async fn set_data(
-    client: Arc<blockchain::ClientContractAlias>,
-    data_name: String,
-) -> Result<Data, Box<dyn std::error::Error>> {
-    let res = Data::default();
-    Ok(res)
-}
