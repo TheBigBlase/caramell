@@ -85,6 +85,7 @@ pub async fn create_wallet(
     Ok(wallet)
 }
 
+/// create middleware from url & wallet
 pub async fn create_middleware(
     url: &str,
     wallet: Wallet<SigningKey>,
@@ -102,6 +103,7 @@ pub async fn create_middleware(
     Ok(mw)
 }
 
+/// create rust representatin from contract client factory
 async fn create_client_factory(
     config: crate::Config,
     wallet: LocalWallet,
@@ -150,7 +152,8 @@ pub async fn get_client_contract_addr(
     Ok(client_addr)
 }
 
-pub async fn create_client(
+/// create rust representatin from contract client TODO use this if we already know addr
+async fn create_client(
     address: H160,
     wallet: LocalWallet,
     url: &str,
@@ -166,32 +169,27 @@ pub async fn create_client(
     Ok(client)
 }
 
+/// create rust obj for contract client
 pub async fn init_contract(
     cfg: crate::Config,
-    brk_lst: Vec<crate::Broker>,
+    broker: crate::Broker,
 ) -> Result<
     ClientContract<SignerMiddleware<Provider<Ws>, LocalWallet>>,
     Box<dyn std::error::Error>,
 > {
     let rpc_url = cfg.clone().blockchain.unwrap().rpc_url_ws;
 
-    let broker: &crate::Broker = brk_lst.first().unwrap();
 
     let address = broker.address;
 
     // "await" in a sync func:
-    let rt = Runtime::new().unwrap();
-    let promise_wallet = create_wallet(cfg.clone());
-    let wallet = rt.block_on(promise_wallet)?;
+    let wallet = create_wallet(cfg.clone()).await?;
 
-    let promise_contract =
-        get_client_contract_addr(cfg.clone(), Some(address), wallet.clone());
-    let client_contract_addr = rt.block_on(promise_contract)?;
+    let client_contract_addr =
+        get_client_contract_addr(cfg.clone(), Some(address), wallet.clone())
+            .await?;
 
     println!("contract address: {:?}", client_contract_addr);
 
-    let client_contract =
-        create_client(client_contract_addr, wallet, rpc_url.as_str()).await?;
-
-    Ok(client_contract)
+    create_client(client_contract_addr, wallet, rpc_url.as_str()).await
 }
