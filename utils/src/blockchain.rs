@@ -13,13 +13,17 @@ use ethers_providers::{Provider, StreamExt, Ws};
 use primitive_types::{H160, U256};
 use tokio::runtime::Runtime;
 
-
 // Type alias !
-pub type ClientContractAlias = ClientContract<SignerMiddleware<Provider<Ws>, Wallet<SigningKey>>> ;
+pub type ClientContractAlias =
+    ClientContract<SignerMiddleware<Provider<Ws>, Wallet<SigningKey>>>;
 
 /// get address of contract, listening to events. The returned contract is owned by the caller
 pub async fn get_address_contract_from_event<M: 'static, D>(
-    evt: ::ethers::contract::builders::Event<::std::sync::Arc<M>, M, ContractCreatedFilter>,
+    evt: ::ethers::contract::builders::Event<
+        ::std::sync::Arc<M>,
+        M,
+        ContractCreatedFilter,
+    >,
     owner: H160,
 ) -> Result<H160, Box<dyn std::error::Error>>
 where
@@ -51,6 +55,19 @@ pub fn create_data(name: &str, time_to_store: U256) -> Data {
     }
 }
 
+impl Data {
+    /// Create data wrapper. Init data at 0, and time of block at the block time
+    /// on the blockchain side.
+    pub fn new(name: &str, time_to_store: U256) -> Self {
+        Data {
+            name: String::from(name),
+            data: U256::zero(), // pointer location, set by contract
+            time_to_store,
+            time_created: U256::zero(), //set by contract }
+        }
+    }
+}
+
 /// simply create a wallet :)
 /// useless to put in a lib, since its a """one liner"""
 /// but jesus what a line that is
@@ -71,10 +88,16 @@ pub async fn create_wallet(
 pub async fn create_middleware(
     url: &str,
     wallet: Wallet<SigningKey>,
-) -> Result<SignerMiddleware<Provider<Ws>, LocalWallet>, Box<dyn std::error::Error>> {
+) -> Result<
+    SignerMiddleware<Provider<Ws>, LocalWallet>,
+    Box<dyn std::error::Error>,
+> {
     let provider = Provider::<Ws>::connect(url).await?;
 
-    let mw = SignerMiddleware::new(provider.clone(), wallet.clone().with_chain_id(1337 as u64));
+    let mw = SignerMiddleware::new(
+        provider.clone(),
+        wallet.clone().with_chain_id(1337 as u64),
+    );
 
     Ok(mw)
 }
@@ -132,7 +155,9 @@ pub async fn create_client(
     wallet: LocalWallet,
     url: &str,
 ) -> Result<
-    ClientContract<SignerMiddleware<ethers_providers::Provider<Ws>, LocalWallet>>,
+    ClientContract<
+        SignerMiddleware<ethers_providers::Provider<Ws>, LocalWallet>,
+    >,
     Box<dyn std::error::Error>,
 > {
     let mw = create_middleware(url, wallet).await?;
@@ -141,12 +166,13 @@ pub async fn create_client(
     Ok(client)
 }
 
-
 pub async fn init_contract(
     cfg: crate::Config,
     brk_lst: Vec<crate::Broker>,
-) -> Result<ClientContract<SignerMiddleware<Provider<Ws>, LocalWallet>>, Box<dyn std::error::Error>>
-{
+) -> Result<
+    ClientContract<SignerMiddleware<Provider<Ws>, LocalWallet>>,
+    Box<dyn std::error::Error>,
+> {
     let rpc_url = cfg.clone().blockchain.unwrap().rpc_url_ws;
 
     let broker: &crate::Broker = brk_lst.first().unwrap();
@@ -164,7 +190,8 @@ pub async fn init_contract(
 
     println!("contract address: {:?}", client_contract_addr);
 
-    let client_contract = create_client(client_contract_addr, wallet, rpc_url.as_str()).await?;
+    let client_contract =
+        create_client(client_contract_addr, wallet, rpc_url.as_str()).await?;
 
     Ok(client_contract)
 }

@@ -28,6 +28,6 @@ id = "client1"
 [blockchain]
 rpc_url_http = "http://localhost:8545"
 rpc_url_ws = "ws://localhost:8645"
-contract_addr = "0x1B3f3bB300076758254899d6e277B0Fa5E834EfD"
+contract_addr = "0xD3018121d485D371391F6F60bE6be2816cCcd912"
 contract_unowned_address = "0xFb0fF05A0CC7fE7944e3b4e9c6ade052daC6534C"
 wallet_key = "0x01e0106d28df9ad6b700186d280a41cdd85c769b1fb50277f2b2239fa6064ca0"

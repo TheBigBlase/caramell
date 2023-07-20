@@ -71,7 +71,7 @@ pub async fn broker_list(
 /// Upon server reception, opens a ftp socket and sends file(s) back
 /// through a ftp socket
 pub async fn read_data(
-    client_contract: blockchain::ClientContractAlias,
+    client_contract: Arc<blockchain::ClientContractAlias>,
     data_name: String,
     client_mqtt: AsyncClient,
     evtloop: EventLoop,
@@ -90,7 +90,7 @@ pub async fn read_data(
 
 /// returns Data retrieved from blockchain
 pub async fn retrieve_data_location(
-    client: blockchain::ClientContractAlias,
+    client: Arc<blockchain::ClientContractAlias>,
     data_name: String,
 ) -> Result<Data, Box<dyn std::error::Error>> {
     let res = client.get_data(data_name).call().await?;
@@ -98,9 +98,18 @@ pub async fn retrieve_data_location(
     Ok(res)
 }
 
+/// retreive all data "pointers" from contract
+pub async fn retrieve_all_data_location(
+    client: Arc<blockchain::ClientContractAlias>,
+) -> Result<Vec<Data>, Box<dyn std::error::Error>> {
+    let res = client.get_all_data().call().await?;
+
+    Ok(res)
+}
+
 /// TODO :)
 pub async fn set_data(
-    client: blockchain::ClientContractAlias,
+    client: Arc<blockchain::ClientContractAlias>,
     data_name: String,
 ) -> Result<Data, Box<dyn std::error::Error>> {
     let res = Data::default();

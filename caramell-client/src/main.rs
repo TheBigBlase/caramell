@@ -13,14 +13,14 @@ use rocket::{Config, Response};
 #[macro_use]
 extern crate rocket;
 use rocket::State;
-use utils::blockchain::{create_client, create_wallet};
+use utils::blockchain::{init_contract, create_wallet};
 use utils::contracts::client_contract::Data;
 use utils::Broker;
 
-// TODO make a rest api :)
-
 #[get("/brokerList")]
-async fn broker_list(state: &State<Arc<Mutex<Vec<Broker>>>>) -> Json<Vec<Broker>> {
+async fn broker_list(
+    state: &State<Arc<Mutex<Vec<Broker>>>>,
+) -> Json<Vec<Broker>> {
     //let state_inner = state.inner().clone();
     //let cfg = state_inner.config.clone();
     //let cli = state_inner.client.clone();
@@ -28,29 +28,58 @@ async fn broker_list(state: &State<Arc<Mutex<Vec<Broker>>>>) -> Json<Vec<Broker>
     Json(vec.clone())
 }
 
-#[get("/ctrct/<ctrct>/get/<name>")]
-async fn get(cfg: &State<utils::Config>, ctrct: String, name: String) -> Json<Data> {
+// TODO read summuary and read data
+#[get("/ctrct/<ctrct>/get_summary/<name>")]
+async fn get(
+    cfg: &State<utils::Config>,
+    brk_lst: &State<Arc<Mutex<Vec<Broker>>>>,
+    ctrct: String,
+    name: String,
+) -> Json<Vec<Data>> {
     let cfg = cfg.inner().clone();
     let blck = cfg.clone().blockchain.unwrap();
     let url = blck.rpc_url_ws.as_str();
-    let wallet = create_wallet(cfg).await.unwrap();
-    let client = create_client(ctrct.clone().parse().unwrap(), wallet, url)
+    let brk: Broker;
+
+    {
+        let brk_lst = brk_lst.lock().unwrap();
+        brk = brk_lst.first().unwrap().clone();
+    }
+
+    let client = init_contract(cfg, brk)
         .await
         .unwrap();
 
-    let res = client_utils::retrieve_data_location(client, name)
-        .await
-        .ok();
-    Json(res.unwrap_or(Data::default()))
+    let res;
+
+    if name == "all".to_string() {
+        res = client_utils::retrieve_all_data_location(Arc::new(client)).await.ok()
+    } else {
+        let tmp = client_utils::retrieve_data_location(Arc::new(client), name).await;
+        let mut v = Vec::new();
+        v.push(tmp.unwrap());
+        res = Some(v);
+    }
+    Json(res.unwrap_or(vec![Data::default()]))
 }
 
 #[get("/ctrct/<ctrct>/set/<name>")]
-async fn set(cfg: &State<utils::Config>, ctrct: String, name: String) -> Json<Data> {
+async fn set(
+    cfg: &State<utils::Config>,
+    brk_lst: &State<Arc<Mutex<Vec<Broker>>>>,
+    ctrct: String,
+    name: String,
+) -> Json<Data> {
     let cfg = cfg.inner().clone();
     let blck = cfg.clone().blockchain.unwrap();
-    let url = blck.rpc_url_ws.as_str();
-    let wallet = create_wallet(cfg).await.unwrap();
-    let client = create_client(ctrct.clone().parse().unwrap(), wallet, url)
+    let brk: Broker;
+
+    {
+        let brk_lst = brk_lst.lock().unwrap();
+        brk = brk_lst.first().unwrap().clone();
+    }
+
+    let client = init_contract(cfg, brk)
         .await
         .unwrap();
 
@@ -92,7 +121,10 @@ impl Fairing for Cors {
             "POST, PATCH, PUT, DELETE, HEAD, OPTIONS, GET",
         ));
         response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
-        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
+        response.set_header(Header::new(
+            "Access-Control-Allow-Credentials",
+            "true",
+        ));
     }
 }
 
@@ -102,7 +134,7 @@ async fn rocket() -> _ {
 
     rocket_cfg.port = 8989;
     rocket_cfg.address = "0.0.0.0".parse().unwrap(); //listens from everywhere
-    //rocket_cfg.workers = 4; //?
+                                                     //rocket_cfg.workers = 4; //?
 
     let figment = Figment::from(rocket_cfg);
 
@@ -116,7 +148,9 @@ async fn rocket() -> _ {
     let vec_clone = vec.clone();
 
     tokio::spawn(async move {
-        let _handle = client_utils::handle_eventloop(evtloop, vec_clone).await.unwrap();
+        let _handle = client_utils::handle_eventloop(evtloop, vec_clone)
+            .await
+            .unwrap();
     });
     utils::subscribe_all(client).await.unwrap();
 
