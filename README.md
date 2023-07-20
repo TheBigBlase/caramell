@@ -54,6 +54,11 @@ running memcached:
 `docker pull memcached
 docker run --name memcache -d -p 11211:11211 memcached`  
 
+For running rust components, you'll need my fork of ethers-rs, unless it has been 
+merged in upstream. Ethers.rs will need to be in the same directory as this one is,
+install it like so:
+`cd ../ && git clone https://github.com/thebigblase/ethers-rs && cd caramell`
+
 running the blockchain:
 `cd caramell-blockchain ; sh blockchainInit/init.sh ; docker compose up`
 
