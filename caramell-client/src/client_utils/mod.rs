@@ -1,8 +1,14 @@
-use rumqttc::v5::{Event, Incoming};
+use rumqttc::{v5::{
+    mqttbytes::{v5::Publish, QoS},
+    Event, Incoming,
+}, RecvTimeoutError};
+
+use tokio::time::{timeout, Timeout};
 use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use tokio::sync::{watch::Sender, watch::Receiver};
 use utils::{blockchain, contracts::client_contract::Data};
 
 pub use rumqttc::v5::{AsyncClient, EventLoop, MqttOptions};
@@ -12,22 +18,36 @@ async fn insert_vec_in_mutex(vec: Arc<Mutex<Vec<Broker>>>, brk: Broker) {
     vec.lock().unwrap().push(brk.clone());
 }
 
+async fn handle_publish(
+    p: Publish,
+    vec: Arc<Mutex<Vec<Broker>>>,
+    self_addr: &str,
+) {
+    let topic = p.topic;
+    if topic.starts_with("srvList".as_bytes()) {
+        let brk = utils::extract_broker(topic, p.payload.clone()).unwrap();
+
+        insert_vec_in_mutex(vec.clone(), brk).await;
+    } else if topic.starts_with(format!("srv/to/{}", self_addr).as_bytes()) {
+
+        //let brk = utils::extract_broker(topic, );
+    }
+}
+
 pub async fn handle_eventloop(
     mut evtloop: EventLoop,
     vec: Arc<Mutex<Vec<Broker>>>,
+    self_addr: &str,
+    tx: Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // using a watch channel so we can clone rx, and we drop unread values
+    // TODO prove that we are indeed self_addr
     loop {
         let msg = evtloop.poll().await;
         match msg {
             // TODO other events ?
             Ok(Event::Incoming(Incoming::Publish(p))) => {
-                let topic = p.topic;
-                if topic.starts_with("srvList".as_bytes()) {
-                    let brk = utils::extract_broker(topic, p.payload.clone())
-                        .unwrap();
-
-                    insert_vec_in_mutex(vec.clone(), brk).await;
-                }
+                handle_publish(p.clone(), vec.clone(), self_addr);
             }
             Ok(_) => (),
             Err(e) => {
@@ -55,7 +75,8 @@ pub async fn init_eventloop(
     Ok((client, eventloop))
 }
 
-/// returns data retrieved from client.
+/// send a read req to server. Returns the retrieved string.
+/// Needs a mpsc channel to send it back, which is passed as arg.
 /// sends reqs through mqtt. Usefull for server side load balancing
 /// Upon server reception, opens a ftp socket and sends file(s) back
 /// through a ftp socket
@@ -63,11 +84,26 @@ pub async fn init_eventloop(
 /// Takes an async mqtt client that the server is connected to.
 /// TODO
 pub async fn read_data(
-    client_contract: Arc<blockchain::ClientContractAlias>,
-    data_name: String,
+    data_name: &str,
+    brk: Broker,
     client_mqtt: AsyncClient,
-) -> Result<Data, Box<dyn std::error::Error>> {
-    let data = retrieve_data_location(client_contract, data_name).await?;
+    self_addr: &str,
+    mut rx: Receiver<String>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // TODO prove that src is us
+    // maybe use a pgp signature w/ wallet key?
+
+    client_mqtt
+        .subscribe(format!("{}:{}", brk.ip, brk.port), QoS::ExactlyOnce)
+        .await?;
+    client_mqtt
+        .publish(
+            format!("{}:{}", brk.ip, brk.port),
+            QoS::ExactlyOnce,
+            true,
+            format!("READ{};SRC{}", data_name, self_addr),
+        )
+        .await?;
 
     // TODO read data from data.data as ip+addr / key value
     // ip/addr is gathered from mqtt, send reqs to mqtt if offline ?
@@ -75,8 +111,23 @@ pub async fn read_data(
     //      maybe each node should have 1 instance and everyone relays everyone
     //      dht of mqtt lmao
 
-    let res = Data::default();
-    Ok(res)
+    
+    let res = rx
+        .changed();
+
+    utils::unsubscribe_all(client_mqtt).await?;
+
+    match timeout(Duration::from_secs(2), res).await {
+        Ok(_) => {
+            Ok(rx.borrow().to_string())
+        }
+        Err(e) => {Err(Box::new(e))}
+    }
+
+
+    
+
+
 }
 
 /// TODO :)
@@ -106,4 +157,3 @@ pub async fn retrieve_all_data_location(
 
     Ok(res)
 }
-

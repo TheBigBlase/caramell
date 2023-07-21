@@ -2,10 +2,9 @@ extern crate utils;
 
 mod client_utils;
 
-use rumqttc::v5::AsyncClient;
-use std::sync::{Arc, Mutex};
-use tokio::sync::watch::Receiver;
+use tokio::sync::broadcast::Receiver;
 use tokio::sync::watch::channel;
+use std::sync::{Arc, Mutex};
 
 use rocket::fairing::{Fairing, Info, Kind};
 
@@ -32,39 +31,35 @@ async fn broker_list(
 }
 
 // TODO read summuary and read data
-#[get("/brk/<ip>/<port>/get/<name>")]
+#[get("/ctrct/<ctrct>/get/<name>")]
 async fn read_server(
     cfg: &State<utils::Config>,
-    client_mqtt: &State<AsyncClient>,
     brk_lst: &State<Arc<Mutex<Vec<Broker>>>>,
     rx: &State<Receiver<String>>,
-    ip: String,
-    port: String,
+    ctrct: String,
     name: String,
-) -> Json<String> {
+) -> Json<Vec<Data>> {
     let cfg = cfg.inner().clone();
-
     let mut brk: Broker = Broker::default();
-    brk.ip = ip;
-    brk.port = port.parse().unwrap();
+    let contract = ctrct.parse::<H160>().unwrap();
 
-    let slf_addr = format!(
-        "{}:{}",
-        cfg.clone().params.unwrap().self_ip.unwrap(),
-        cfg.clone().params.unwrap().self_port.unwrap()
-        );
+    {
+        let brk_lst = brk_lst.lock().unwrap();
+        let brk_lst = brk_lst.clone();
+        let res = brk_lst.binary_search_by(|b| b.address.cmp(&contract));
+        match res {
+            Ok(idx) => brk = brk_lst.get(idx).unwrap().clone(),
+            Err(_) => (),
+        };
+    }
 
-    // TODO save file instead of printing it :)
-    let res = client_utils::read_data(
-        name.as_str(),
-        brk,
-        client_mqtt.inner().clone(),
-        &slf_addr.to_string(),
-        rx.inner().clone(),
-    )
-    .await;
-
-    Json(res.unwrap_or(String::new()))
+    let res;
+    let tmp =
+        client_utils::read_data(name, ).await;
+    let mut v = Vec::new();
+    v.push(tmp.unwrap());
+    res = Some(v);
+    Json(res.unwrap_or(vec![Data::default()]))
 }
 
 // TODO read summuary and read data
@@ -187,37 +182,33 @@ async fn rocket() -> _ {
     let (client, evtloop) = client_utils::init_eventloop(crml_cfg.clone())
         .await
         .unwrap();
-
+    // TODO share vec between threads
     let vec: Vec<Broker> = Vec::new();
     let vec = Arc::new(Mutex::new(vec)).clone();
     let vec_clone = vec.clone();
 
     let slf_addr = format!(
-        "{}:{}",
+        "{}:{}"
         crml_cfg.clone().params.unwrap().self_ip.unwrap(),
         crml_cfg.clone().params.unwrap().self_port.unwrap(),
     );
 
+
     let (tx, rx) = channel::<String>("".to_string());
 
+    let rx = Arc::new(rx);
 
     tokio::spawn(async move {
-        let _handle = client_utils::handle_eventloop(
-            evtloop,
-            vec_clone,
-            slf_addr.as_str(),
-            tx,
-        )
-        .await
-        .unwrap();
+        let _handle = client_utils::handle_eventloop(evtloop, vec_clone, tx)
+            .await
+            .unwrap();
     });
-    utils::subscribe_all(client.clone()).await.unwrap();
+    utils::subscribe_all(client).await.unwrap();
 
     rocket::custom(figment)
         .attach(Cors)
         .manage(crml_cfg)
         .manage(vec)
         .manage(rx)
-        .manage(client)
         .mount("/", routes![index, broker_list, all_options, get, set])
 }

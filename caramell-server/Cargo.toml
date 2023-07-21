@@ -14,9 +14,9 @@ rumqttc = "0.21.0"
 serde = { version = "1.0.163", features = ["derive"] }
 tokio = { version = "1.28.1", features = ["rt-multi-thread"] }
 toml = "0.7.4"
-ethers = "2.0.7"
-ethers-middleware = "2.0.7"
-ethers-providers = "2.0.7"
+ethers = { path = "../../ethers-rs/ethers" }
+ethers-middleware = { path = "../../ethers-rs/ethers-middleware" }
+ethers-providers = { path = "../../ethers-rs/ethers-providers" }
 
 [params]
 cache_ip = "localhost"

@@ -52,7 +52,7 @@ or use anything you fancy (mosquitto/rmqtt...)
 
 running memcached: 
 `docker pull memcached
-docker run --name memcache -d -p 11211:11211 memcached`  
+docker run --name memcache -d -p 11211:11211 memcached -m20000m -I500m`  
 
 For running rust components, you'll need my fork of ethers-rs, unless it has been 
 merged in upstream. Ethers.rs will need to be in the same directory as this one is,

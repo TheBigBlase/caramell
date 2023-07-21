@@ -1,13 +1,9 @@
-use rumqttc::v5::mqttbytes::QoS;
-use rumqttc::v5::AsyncClient;
+use rumqttc::v5::{mqttbytes::QoS, AsyncClient, EventLoop};
 use tokio::task;
-
-use rumqttc::v5::EventLoop;
 use utils::blockchain;
-
 use utils::MemcacheClient;
 
-/// sends cacher's address to the broker
+/// sends cacher's address to the broker, and subscibes to its own address
 pub async fn init_broker_srvlist(
     client: AsyncClient,
     params: utils::Params,
@@ -17,6 +13,13 @@ pub async fn init_broker_srvlist(
     // also adds a "..." in the middle of our string :/
     // so we format it in debug mode TODO find another way
     let addr = format!("{:?}", blck_p.contract_addr);
+
+    client
+        .subscribe(
+            format!("srv/{}:{}", params.broker_ip, params.broker_port),
+            QoS::ExactlyOnce,
+        )
+        .await?;
 
     client
         .publish(
@@ -51,7 +54,7 @@ async fn broker_serve_forever(
     })
     .await;
 
-    panic!("exiting forever loop");
+    panic!("exiting forever loop")
 }
 
 /// serve forever, checking for contract gas / validity after caching 1st data.

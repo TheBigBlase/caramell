@@ -1,17 +1,13 @@
-use bytes::Bytes;
 use memcache;
+use bytes::Bytes;
 pub use primitive_types::H160;
-use rumqttc::v5::mqttbytes::v5::Packet::Publish;
-use rumqttc::v5::mqttbytes::QoS;
-use rumqttc::v5::{
-    AsyncClient, Client, ClientError, Event, EventLoop, Incoming,
-};
 use serde::{Deserialize, Serialize};
+use rumqttc::v5::mqttbytes::{v5::Packet::Publish, QoS};
+use rumqttc::v5::{AsyncClient, ClientError, Event, EventLoop, Incoming};
 
 use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
-use tokio::sync::mpsc::Receiver;
 use tokio::time::timeout;
 
 pub mod blockchain;
@@ -33,6 +29,8 @@ pub struct Params {
     pub id: String,
     pub contract_addr: Option<H160>,
     pub pub_key: Option<H160>,
+    pub self_ip: Option<String>,
+    pub self_port: Option<u16>
 }
 
 #[derive(Deserialize, Clone)]
@@ -102,7 +100,7 @@ impl MemcacheClient {
     /// returns inserted string, or an error describing the event.
     pub fn check_publish(
         &self,
-        msg: rumqttc::v5::Event,
+        msg: Event,
     ) -> Result<String, ErrorBrokerMemcached> {
         match msg {
             Event::Outgoing(notif) => {
@@ -177,9 +175,9 @@ pub fn extract_broker(
 /// get list of all cacher according to broker.
 /// Takes ownership of eventloop. Therefore, use it as a one shot command
 pub async fn get_list_cacher_from_broker(
-    client: &rumqttc::v5::AsyncClient,
+    client: &AsyncClient,
     mut evt_loop: EventLoop,
-) -> Result<std::vec::Vec<Broker>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Broker>, Box<dyn std::error::Error>> {
     subscribe_all(client.clone()).await?;
 
     let mut res = vec![];
