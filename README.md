@@ -15,17 +15,18 @@ The caching system needs to be able to scale / be distributed
    ^     +-----+----+       +----------+ \
   / \          |                          \
   User  +------+----------+                \
-        |    Blockchain   |<--+             \
-        | Smart Contracts |   |         +----+---------+
-        +-----------------+   +-------->|  Middleware  |
-                                        +------+-------+
-                                               |
-                                               |
-                                        +------+-----+  
-                                        |   Cache    |  
-                                        +------------+  
+        |    Blockchain   |<--+        +----------------+
+        | Smart Contracts |   |        |+----+---------+|
+        +-----------------+   +--------||  Middleware  ||
+                                       |+------+-------+|
+                                       |       |        |
+                                       |       |        |
+                                       |+------+-----+  |
+                                       ||   Cache    |  |
+                                       |+------------+  |
+                                       +----------------+
+                                             SERVER
 ```
-
 Notes:
 * the Mom is MQTT compliant (for now). 
     * pro:
@@ -44,34 +45,39 @@ Notes:
 	* is a overhead of cache
 
 ## usage
+All the command are assuming you are in the project's root folder
+(ie /home/.../caramell)
+
+
+### mqtt
 runing the mqtt: 
-`docker pull bytebeamio/rumqttd
-docker run -d -p 1883:1883 -p 1884:1884 -it --name rumqttd bytebeamio/rumqttd`  
+`docker pull bytebeamio/rumqttd`
+`docker run -d -p 1883:1883 -p 1884:1884 -it --name rumqttd bytebeamio/rumqttd`  
 
-or use anything you fancy (mosquitto/rmqtt...)
+or use anything that tickle your fancy (mosquitto/rmqtt...).  
+I'd recommend using mosquitto, since it is the most stable and well polished.
+It has some feature like a load balancer in a round robin fashion to deliver 
+messages.
 
-running memcached: 
-`docker pull memcached
-docker run --name memcache -d -p 11211:11211 memcached -m20000m -I500m`  
+But, for demonstration purpose, none of this is needed.
 
-For running rust components, you'll need my fork of ethers-rs, unless it has been 
-merged in upstream. Ethers.rs will need to be in the same directory as this one is,
-install it like so:
-`cd ../ && git clone https://github.com/thebigblase/ethers-rs && cd caramell`
+---
+### cacher
+running memcached:  
+`docker pull memcached`
+`docker run --name memcache -d -p 11211:11211 memcached -m20000m -I500m`  
+where `m<size>` indicates the max size allocated to memcached, and
+`-I<size>` the max item size.
 
-running the blockchain:
+---
+
+### running the blockchain:  
+you will have to this project's (caramell) root and ensure that you have 
+also pulled git submodules: `git submodules init ; git submodule update`
+
+Then, execute the init script, and the blockchain nodes:
 `cd caramell-blockchain ; sh blockchainInit/init.sh ; docker compose up`
+
 
 client: `cargo run --bin caramell-client`  
 server: `cargo run --bin caramell-server`  
-
-## TODO
-* for now client sends dummy data, and server inserts it into memcache
-* gotta do client better
-* ~~finish base of server~~
-* ~~do server => blockchain~~
-* ~~mqtt => blockchain as well?~~
-* paying mechanism: contract witholding (?) gas, then retrievable by cache owner
-	* contract side
-	* cacher side
-	* client side
