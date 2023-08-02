@@ -81,3 +81,12 @@ Then, execute the init script, and the blockchain nodes:
 
 client: `cargo run --bin caramell-client`  
 server: `cargo run --bin caramell-server`  
+
+---
+
+### Front End
+there is a small interface written **very** poorly. To run it, put yourself in
+its root directory with `cd ./caramell-frontend` and run it with
+`npm install ; npm run dev`. Please note that it is still quite broken, and 
+does not have all func it is supposed to have. i'll update it when i have more 
+time.
