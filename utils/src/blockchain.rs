@@ -6,7 +6,7 @@ use crate::contracts::{
 };
 
 use ethers::signers::{LocalWallet, Signer, Wallet};
-use ethers_contract::EthLogDecode;
+use ethers::contract::EthLogDecode;
 use ethers_middleware::core::k256::ecdsa::SigningKey;
 use ethers_middleware::SignerMiddleware;
 use ethers_providers::{Provider, StreamExt, Ws};

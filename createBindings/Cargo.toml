@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ethers = { path = "../../ethers-rs/ethers"}
+ethers = { git = "https://github.com/thebigblase/ethers-rs", branch = "caramell" }
 serde = "1.0.166"

@@ -20,7 +20,7 @@ done
 genAbi() {
 	echo generating abi...
 	cd $base/caramell-blockchain/caramell-blockchain/truffle
-	truffle compile
+	truffle compile &&
 	cd $base
 }
 

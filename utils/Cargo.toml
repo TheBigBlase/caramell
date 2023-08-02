@@ -7,10 +7,9 @@ edition = "2021"
 
 [dependencies]
 bytes = "1.4.0"
-ethers = { path = "../../ethers-rs/ethers"}
-ethers-contract = { path = "../../ethers-rs/ethers-contract" }
-ethers-middleware = { path = "../../ethers-rs/ethers-middleware" }
-ethers-providers = { path = "../../ethers-rs/ethers-providers" }
+ethers = { git = "https://github.com/thebigblase/ethers-rs", rev = "caramell-v2.0.7"}
+ethers-providers = { git = "https://github.com/thebigblase/ethers-rs", rev = "caramell-v2.0.7"}
+ethers-middleware = { git = "https://github.com/thebigblase/ethers-rs", rev = "caramell-v2.0.7"}
 memcache = "0.17.0"
 primitive-types = "0.12.1"
 rumqttc = "0.21.0"
